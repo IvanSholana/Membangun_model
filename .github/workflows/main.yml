@@ -56,14 +56,15 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       - name: Build Docker Model
+        shell: bash -l {0}
         run: |
-           mlflow models build-docker --model-uri "runs:/$RUN_ID/best_model" --name "personality-model-docker"
+            conda run -n base mlflow models build-docker --model-uri "runs:/$RUN_ID/best_model" --name "personality-model-docker"
 
       - name: Login to Docker Hub
         run: |
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Docker image to Docker Hub
         run: |
-          docker tag cc:latest ${{ secrets.DOCKERHUB_USERNAME }}/cc:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/cc:latest
+          docker tag personality-model-docker:latest ${{ secrets.DOCKERHUB_USERNAME }}/personality-model:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/personality-model:latest
