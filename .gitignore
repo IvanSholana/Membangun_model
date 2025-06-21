@@ -20,8 +20,3 @@ build/
 # IDE settings
 .vscode/
 .idea/
-
-# Model files and large data
-*.h5
-*.pkl
-*.csv
