@@ -1,0 +1,27 @@
+# Jupyter Notebook files
+.ipynb_checkpoints
+*.ipynb
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+.env
+
+# Distribution/packaging
+dist/
+build/
+*.egg-info/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Model files and large data
+*.h5
+*.pkl
+*.csv
