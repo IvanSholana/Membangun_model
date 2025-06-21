@@ -30,7 +30,7 @@ jobs:
 
       - name: Install MLflow
         run: |
-          conda install -c conda-forge mlflow -y
+          pip install mlflow
 
       - name: Run MLflow project
         id: train
