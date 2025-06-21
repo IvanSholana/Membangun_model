@@ -4,6 +4,6 @@ conda_env: conda.yaml
 
 entry_points:
   main:
-      parameters:
-        dataset : {type: string, default: "personality_preprocessing/personality_preprocessing.csv"}
-      command: "python modelling_tunning.py {dataset}"
+    parameters:
+      dataset: {type: string, default: "personality_preprocessing/personality_preprocessing.csv"}
+    command: "python modelling_tunning.py {dataset}"
