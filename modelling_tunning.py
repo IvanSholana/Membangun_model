@@ -10,6 +10,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import mlflow
 import mlflow.xgboost
 
+mlflow.set_tracking_uri("http://localhost:5000")
 mlflow.set_experiment("Personality_Prediction_Experiment")
 
 # ───────────────────────── Read dataset ─────────────────────────
@@ -36,7 +37,7 @@ param_grid = {
 }
 
 # ──────────────────────── Main MLflow run ───────────────────────
-with mlflow.start_run(run_name="XGB_Tuning") as parent_run:
+with mlflow.start_run(run_name="XGB_Tuning", nested=mlflow.active_run() is not None) as parent_run:
     grid_search = GridSearchCV(
         estimator=xgb,
         param_grid=param_grid,

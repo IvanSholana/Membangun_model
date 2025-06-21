@@ -6,8 +6,15 @@ dependencies:
   - python=3.10
   - pip
   - pip:
-      - xgboost
-      - mlflow
-      - dagshub
-      - scikit-learn
-      - pandas
+      - xgboost==3.0.2
+      - mlflow==2.22.0
+      - dagshub==0.5.10
+      - scikit-learn==1.6.1
+      - pandas==2.2.3
+      - numpy==2.2.6
+      - matplotlib==3.10.3
+      - seaborn==0.13.2
+      - joblib==1.5.1
+      - protobuf==6.31.1
+      - cloudpickle==3.1.1
+      - sqlalchemy==2.0.41
