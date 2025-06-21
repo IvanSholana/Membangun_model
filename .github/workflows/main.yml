@@ -25,6 +25,7 @@ jobs:
 
       - name: Run MLflow project and extract RUN_ID
         id: train
+        working-directory: ./
         run: |
           mlflow run . --env-manager=local
           EXPERIMENT_ID=$(mlflow experiments list | awk 'NR==2{print $1}')
