@@ -57,7 +57,7 @@ jobs:
 
       - name: Build Docker Model
         run: |
-           mlflow models build-docker --model-uri "runs:/$RUN_ID/model" --name "personality-model-docker"
+           mlflow models build-docker --model-uri "runs:/$RUN_ID/best_model" --name "personality-model-docker"
 
       - name: Login to Docker Hub
         run: |
