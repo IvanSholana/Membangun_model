@@ -43,8 +43,6 @@ jobs:
       - name: Run MLflow project
         id: train
         shell: bash -l {0}
-        env:
-            DAGSHUB_USER_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           echo "--- Running mlflow run command with Conda environment manager ---"
           conda init bash
