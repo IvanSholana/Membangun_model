@@ -1,4 +1,5 @@
 mlflow
+dagshub
 xgboost
 scikit-learn
 pandas
