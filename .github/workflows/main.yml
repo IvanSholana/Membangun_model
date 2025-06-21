@@ -33,6 +33,7 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Extracted RUN_ID=$RUN_ID"
 
+
       - name: Install Docker CLI tools
         run: |
           sudo apt-get update
