@@ -13,24 +13,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
         with:
-          python-version: "3.10"
+          activate-environment: mlflow-env
+          python-version: 3.10
 
-      - name: Initialize Conda
-        run: |
-          conda init bash
-          source ~/.bashrc # Atau source ~/.profile, tergantung shell Conda Anda
-          conda activate base # Aktivasi base environment agar conda commands tersedia
-          echo "Conda initialized and base environment activated."
-          conda env list # Untuk verifikasi
-          which conda # Untuk verifikasi path conda
-
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install mlflow
+      - name: Install MLflow
+        run: conda install -c conda-forge mlflow -y
 
       - name: Run MLflow project
         id: train
@@ -40,9 +30,9 @@ jobs:
 
       - name: Get latest MLflow run_id
         run: |
-            RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
-            echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-            echo "Latest run_id: $RUN_ID"
+          RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "Latest run_id: $RUN_ID"
 
       - name: Install Docker CLI tools
         run: |
