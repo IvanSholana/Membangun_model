@@ -27,6 +27,8 @@ jobs:
         id: train
         run: |
           mlflow run . --env-manager=local
+        working-directory: Membangun_model
+          
 
       - name: Get latest MLflow run_id
         run: |
