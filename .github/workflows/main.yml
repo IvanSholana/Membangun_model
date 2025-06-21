@@ -18,27 +18,38 @@ jobs:
         with:
           activate-environment: mlflow-env
           python-version: "3.10"
-          channels: conda-forge,defaults
+          channels: defaults,conda-forge
           auto-activate-base: false
           miniconda-version: "latest"
 
-      - name: Verify Conda Installation
+      - name: Initialize Conda
+        shell: bash -l {0}
         run: |
+          conda init bash
           conda info
           conda list
-          which conda
+          which python
+          python --version
+          which pip
+          echo "Active environment: $CONDA_DEFAULT_ENV"
 
       - name: Install MLflow
+        shell: bash -l {0}
         run: |
           pip install mlflow
+          pip show mlflow
+          which mlflow
 
       - name: Run MLflow project
         id: train
+        shell: bash -l {0}
         run: |
           echo "--- Running mlflow run command with Conda environment manager ---"
+          conda init bash
           mlflow run . --env-manager=conda
 
       - name: Get latest MLflow run_id
+        shell: bash -l {0}
         run: |
           RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
@@ -50,7 +61,9 @@ jobs:
           sudo apt-get install -y docker.io
 
       - name: Build Docker Image with MLflow
+        shell: bash -l {0}
         run: |
+          conda init bash
           mlflow models build-docker \
             -m mlruns/${{ env.EXPERIMENT_ID }}/${{ env.RUN_ID }}/artifacts/best_model \
             -n personality-model
