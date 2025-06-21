@@ -11,7 +11,7 @@ import mlflow
 import mlflow.xgboost
 
 mlflow.set_tracking_uri("file:./mlruns")
-mlflow.set_experiment("Personality_Prediction_Experiment")
+# mlflow.set_experiment("Personality_Prediction_Experiment") 
 
 # ───────────────────────── Read dataset ─────────────────────────
 if len(sys.argv) < 2:
@@ -36,51 +36,56 @@ param_grid = {
     "learning_rate": [0.01, 0.1, 0.2],
 }
 
-# ──────────────────────── Main MLflow run ───────────────────────
-with mlflow.start_run(run_name="XGB_Tuning", nested=mlflow.active_run() is not None) as parent_run:
-    grid_search = GridSearchCV(
-        estimator=xgb,
-        param_grid=param_grid,
-        scoring="accuracy",
-        cv=3,
-        verbose=1,
-        n_jobs=-1
-    )
+# ──────────────────────── Main Logic ───────────────────────
+# Jika Anda ingin logging ke parent run yang dibuat oleh MLflow CLI:
+# Tidak perlu `with mlflow.start_run()` untuk parent run di sini.
+# Semua logging ke parent run akan secara otomatis masuk ke run yang dibuat oleh `mlflow run` CLI
 
-    start_time = time.time()
-    grid_search.fit(X_train, y_train)
-    train_time = time.time() - start_time
+grid_search = GridSearchCV(
+    estimator=xgb,
+    param_grid=param_grid,
+    scoring="accuracy",
+    cv=3,
+    verbose=1,
+    n_jobs=-1
+)
 
-    # ── Log every candidate model as a nested run ──
-    for i, params in enumerate(grid_search.cv_results_["params"]):
-        model = XGBClassifier(
-            **params,
-            use_label_encoder=False,
-            eval_metric="mlogloss"
-        ).fit(X_train, y_train)
+start_time = time.time()
+grid_search.fit(X_train, y_train)
+train_time = time.time() - start_time
 
-        y_pred = model.predict(X_test)
+# ── Log every candidate model as a nested run ──
+for i, params in enumerate(grid_search.cv_results_["params"]):
+    model = XGBClassifier(
+        **params,
+        use_label_encoder=False,
+        eval_metric="mlogloss"
+    ).fit(X_train, y_train)
 
-        with mlflow.start_run(run_name=f"XGB_Tuning_{i}", nested=True):
-            mlflow.log_params(params)
-            mlflow.log_metric("accuracy",  accuracy_score(y_test, y_pred))
-            mlflow.log_metric("precision", precision_score(y_test, y_pred, average="macro"))
-            mlflow.log_metric("recall",    recall_score(y_test, y_pred, average="macro"))
-            mlflow.log_metric("f1_score",  f1_score(y_test, y_pred, average="macro"))
-            mlflow.log_metric("train_time", train_time)
-            mlflow.xgboost.log_model(model, artifact_path="model")
+    y_pred = model.predict(X_test)
 
-    # ── Log the best model in the parent run ──
-    best_model  = grid_search.best_estimator_
-    best_params = grid_search.best_params_
-    y_pred_best = best_model.predict(X_test)
+    # Ini adalah nested run, jadi `nested=True` tetap benar
+    with mlflow.start_run(run_name=f"XGB_Tuning_{i}", nested=True):
+        mlflow.log_params(params)
+        mlflow.log_metric("accuracy",   accuracy_score(y_test, y_pred))
+        mlflow.log_metric("precision", precision_score(y_test, y_pred, average="macro"))
+        mlflow.log_metric("recall",     recall_score(y_test, y_pred, average="macro"))
+        mlflow.log_metric("f1_score",   f1_score(y_test, y_pred, average="macro"))
+        mlflow.log_metric("train_time", train_time)
+        mlflow.xgboost.log_model(model, artifact_path="model")
 
-    mlflow.log_params(best_params)
-    mlflow.log_metric("best_accuracy",  accuracy_score(y_test, y_pred_best))
-    mlflow.log_metric("best_precision", precision_score(y_test, y_pred_best, average="macro"))
-    mlflow.log_metric("best_recall",    recall_score(y_test, y_pred_best, average="macro"))
-    mlflow.log_metric("best_f1_score",  f1_score(y_test, y_pred_best, average="macro"))
-    mlflow.log_metric("best_train_time", train_time)
+# ── Log the best model in the PARENT run (yang dibuat oleh CLI) ──
+best_model  = grid_search.best_estimator_
+best_params = grid_search.best_params_
+y_pred_best = best_model.predict(X_test)
 
-    mlflow.xgboost.log_model(best_model, artifact_path="best_model")
-    mlflow.xgboost.save_model(best_model, "model")   # Optional: for Docker etc.
+# Log langsung ke run yang sudah aktif (yang dibuat oleh `mlflow run` CLI)
+mlflow.log_params(best_params)
+mlflow.log_metric("best_accuracy",   accuracy_score(y_test, y_pred_best))
+mlflow.log_metric("best_precision", precision_score(y_test, y_pred_best, average="macro"))
+mlflow.log_metric("best_recall",     recall_score(y_test, y_pred_best, average="macro"))
+mlflow.log_metric("best_f1_score",   f1_score(y_test, y_pred_best, average="macro"))
+mlflow.log_metric("best_train_time", train_time)
+
+mlflow.xgboost.log_model(best_model, artifact_path="best_model")
+mlflow.xgboost.save_model(best_model, "model")   # Optional: for Docker etc.
