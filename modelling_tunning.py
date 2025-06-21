@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import mlflow
 import mlflow.xgboost
 
-mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_tracking_uri("file:///mlruns")
 mlflow.set_experiment("Personality_Prediction_Experiment")
 
 # ───────────────────────── Read dataset ─────────────────────────
