@@ -28,35 +28,42 @@ jobs:
           conda init bash
           conda info
           conda list
+          which python
+          python --version
+          which pip
+          echo "Active environment: $CONDA_DEFAULT_ENV"
 
-      - name: Run MLflow Project
-        working-directory: Membangun_model
+      - name: Install MLflow
         shell: bash -l {0}
         run: |
-          echo "--- Running MLflow ---"
-          mlflow run . --env-manager=conda -P dataset=personality_preprocessing/personality_preprocessing.csv
+          pip install mlflow
+          pip show mlflow
+          which mlflow
+
+      - name: Run MLflow project
+        id: train
+        shell: bash -l {0}
+        run: |
+          echo "--- Running mlflow run command with Conda environment manager ---"
+          conda init bash
+          mlflow run . --env-manager=conda
 
       - name: Get latest MLflow run_id
-        id: get_run
         shell: bash -l {0}
-        working-directory: Membangun_model
         run: |
-          RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
+          RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | awk -F '/' '{print $(NF-1)}')
+          echo "RUN_ID=$RUN_ID"
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Latest run_id: $RUN_ID"
 
       - name: Build Docker Model
-        shell: bash -l {0}
-        working-directory: Membangun_model
         run: |
-          echo "--- Building Docker image from MLflow run ---"
-          mlflow models build-docker --model-uri "runs:/${{ env.RUN_ID }}/best_model" --name "personality-model-docker"
+           mlflow models build-docker --model-uri "runs:/$RUN_ID/model" --name "personality-model-docker"
 
       - name: Login to Docker Hub
         run: |
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Docker image to Docker Hub
         run: |
-          docker tag personality-model-docker:latest ${{ secrets.DOCKERHUB_USERNAME }}/personality-model-docker:latest
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/personality-model-docker:latest
+          docker tag cc:latest ${{ secrets.DOCKERHUB_USERNAME }}/cc:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/cc:latest
