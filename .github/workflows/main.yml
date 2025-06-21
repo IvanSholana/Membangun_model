@@ -13,6 +13,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Debug - List Files at Repository Root (Initial State)
+        run: |
+          echo "--- Listing files at repository root (before any working-directory changes) ---"
+          pwd
+          ls -la
+          echo "--- Listing ALL files recursively from root ---"
+          ls -laR
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -23,18 +31,42 @@ jobs:
           python -m pip install --upgrade pip
           pip install mlflow
 
+      # --- Langkah MLflow Project dengan Debugging Mendalam ---
+      - name: Debug - Verify Working Directory BEFORE MLflow Run
+        run: |
+          echo "--- Current Working Directory BEFORE MLflow Run ---"
+          pwd
+          echo "--- Listing files in current working directory BEFORE MLflow Run ---"
+          ls -la
+        working-directory: Membangun_model # Debug ini akan dijalankan setelah pindah direktori
+
       - name: Run MLflow project
         id: train
+        # Pastikan tidak ada spasi kosong di baris ini atau setelahnya jika ini baris terakhir run:
         run: |
+          echo "--- Running mlflow run command ---"
           mlflow run . --env-manager=local
-        working-directory: Membangun_model
-          
+        working-directory: Membangun_model # Pastikan indentasi dan baris ini benar
 
+      - name: Debug - Verify Working Directory AFTER MLflow Run
+        run: |
+          echo "--- Current Working Directory AFTER MLflow Run ---"
+          pwd
+          echo "--- Listing files in current working directory AFTER MLflow Run ---"
+          ls -la
+          echo "--- Listing contents of mlruns directory (if created) ---"
+          ls -la mlruns/ || echo "mlruns directory not found or empty."
+        working-directory: Membangun_model # Debug ini juga di direktori yang sama
+
+      # --- Lanjutkan langkah berikutnya dengan working-directory yang konsisten ---
       - name: Get latest MLflow run_id
         run: |
-            RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
-            echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-            echo "Latest run_id: $RUN_ID"
+          echo "--- Getting latest MLflow run_id ---"
+          # Tambahkan -f1 untuk output yang lebih bersih jika ada masalah dengan ls -td
+          RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "Latest run_id: $RUN_ID"
+        working-directory: Membangun_model # Pastikan ini di direktori yang benar untuk menemukan mlruns
 
       - name: Install Docker CLI tools
         run: |
@@ -43,15 +75,19 @@ jobs:
 
       - name: Build Docker Image with MLflow
         run: |
+          echo "--- Building Docker Image with MLflow ---"
           mlflow models build-docker \
-            -m mlruns/${{ env.EXPERIMENT_ID }}/${{ env.RUN_ID }}/artifacts/best_model \
+            -m mlruns/0/${{ env.RUN_ID }}/artifacts/best_model \
             -n personality-model
+        working-directory: Membangun_model # Pastikan ini di direktori yang benar untuk menemukan mlruns dan model
 
       - name: Login to Docker Hub
         run: |
+          echo "--- Logging into Docker Hub ---"
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Docker image to Docker Hub
         run: |
+          echo "--- Pushing Docker image to Docker Hub ---"
           docker tag personality-model:latest ${{ secrets.DOCKERHUB_USERNAME }}/personality-model:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/personality-model:latest
