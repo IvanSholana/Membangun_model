@@ -26,7 +26,8 @@ jobs:
       - name: Run MLflow project
         id: train
         run: |
-          mlflow run . --env-manager=local
+          echo "--- Running mlflow run command with Conda environment manager ---"
+          mlflow run . --env-manager=conda
 
       - name: Get latest MLflow run_id
         run: |
