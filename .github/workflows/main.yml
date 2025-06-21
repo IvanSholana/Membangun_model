@@ -23,17 +23,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r Membangun_model/requirements.txt
 
-      - name: Run MLflow project and extract RUN_ID
+      - name: Run MLflow project
         id: train
-        working-directory: ./
         run: |
-          mlflow run . --env-manager=local
-          EXPERIMENT_ID=$(mlflow experiments list | awk 'NR==2{print $1}')
-          RUN_ID=$(ls -td mlruns/$EXPERIMENT_ID/*/ | head -n 1 | awk -F '/' '{print $(NF-1)}')
-          echo "EXPERIMENT_ID=$EXPERIMENT_ID" >> $GITHUB_ENV
-          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Extracted RUN_ID=$RUN_ID"
+          mlflow run MLproject --env-manager=local
 
+      - name: Get latest MLflow run_id
+        run: |
+            RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
+            echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+            echo "Latest run_id: $RUN_ID"
 
       - name: Install Docker CLI tools
         run: |
