@@ -1,15 +1,22 @@
 import os
-import sys
 import time
+import json
 import pandas as pd
-
-from xgboost import XGBClassifier
-from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 import mlflow
 import mlflow.xgboost
+import sys
 
+from xgboost import XGBClassifier
+from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    confusion_matrix
+)
+
+# ─────────────── MLflow Setup ───────────────
 mlflow.set_tracking_uri("file:./mlruns")
 # mlflow.set_experiment("Personality_Prediction_Experiment") 
 
@@ -18,31 +25,22 @@ if len(sys.argv) < 2:
     raise ValueError("Please provide path to dataset as an argument.")
 dataset_path = sys.argv[1]
 print(f"[INFO] Loading dataset from: {dataset_path}")
-dataset = pd.read_csv(dataset_path)
+df = pd.read_csv(dataset_path)
 
-# ───────────────────────── Train / test split ───────────────────
+X = df.drop(columns=["Personality"])
+y = df["Personality"]
 X_train, X_test, y_train, y_test = train_test_split(
-    dataset.drop(columns=["Personality"]),
-    dataset["Personality"],
-    test_size=0.2,
-    random_state=42
+    X, y, test_size=0.2, random_state=42
 )
 
-# ───────────────────────── Model & grid ─────────────────────────
-xgb = XGBClassifier(use_label_encoder=False, eval_metric="mlogloss")
+# ─────────────── Grid Search Setup ───────────────
 param_grid = {
-    "n_estimators": [100, 200],
-    "max_depth":     [3, 5, 7],
-    "learning_rate": [0.01, 0.1, 0.2],
+    "n_estimators":    [100, 200],
+    "max_depth":       [3, 5, 7],
+    "learning_rate":   [0.01, 0.1, 0.2],
 }
-
-# ──────────────────────── Main Logic ───────────────────────
-# Jika Anda ingin logging ke parent run yang dibuat oleh MLflow CLI:
-# Tidak perlu `with mlflow.start_run()` untuk parent run di sini.
-# Semua logging ke parent run akan secara otomatis masuk ke run yang dibuat oleh `mlflow run` CLI
-
-grid_search = GridSearchCV(
-    estimator=xgb,
+grid = GridSearchCV(
+    estimator=XGBClassifier(use_label_encoder=False, eval_metric="mlogloss"),
     param_grid=param_grid,
     scoring="accuracy",
     cv=3,
@@ -50,42 +48,105 @@ grid_search = GridSearchCV(
     n_jobs=-1
 )
 
-start_time = time.time()
-grid_search.fit(X_train, y_train)
-train_time = time.time() - start_time
+# ─────────────── Fit Grid ───────────────
+start = time.time()
+grid.fit(X_train, y_train)
+total_train_time = time.time() - start
 
-# ── Log every candidate model as a nested run ──
-for i, params in enumerate(grid_search.cv_results_["params"]):
-    model = XGBClassifier(
-        **params,
-        use_label_encoder=False,
-        eval_metric="mlogloss"
-    ).fit(X_train, y_train)
+# ─────────────── Log Each Candidate as Nested Run ───────────────
+for idx, params in enumerate(grid.cv_results_["params"]):
+    model = XGBClassifier(**params, use_label_encoder=False, eval_metric="mlogloss")
+    model.fit(X_train, y_train)
+    preds = model.predict(X_test)
 
-    y_pred = model.predict(X_test)
+    metrics = {
+        "accuracy":  accuracy_score(y_test, preds),
+        "precision": precision_score(y_test, preds, average="macro"),
+        "recall":    recall_score(y_test, preds, average="macro"),
+        "f1_score":  f1_score(y_test, preds, average="macro"),
+        "train_time": total_train_time
+    }
 
-    # Ini adalah nested run, jadi `nested=True` tetap benar
-    with mlflow.start_run(run_name=f"XGB_Tuning_{i}", nested=True):
+    # Plot confusion matrix
+    cm = confusion_matrix(y_test, preds)
+    cm_filename = f"confusion_matrix_{idx}.png"
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.title(f"Tuning {idx} Confusion Matrix")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+    plt.savefig(cm_filename)
+    plt.close()
+
+    # Save metrics JSON
+    metric_path = f"metric_info_{idx}.json"
+    with open(metric_path, "w") as fp:
+        json.dump(metrics, fp, indent=4)
+
+    # Save estimator info
+    estimator_html = f"estimator_{idx}.html"
+    with open(estimator_html, "w") as fp:
+        fp.write(f"<pre>{model}</pre>")
+
+    # Log to MLflow
+    with mlflow.start_run(run_name=f"XGB_Tuning_{idx}", nested=True):
         mlflow.log_params(params)
-        mlflow.log_metric("accuracy",   accuracy_score(y_test, y_pred))
-        mlflow.log_metric("precision", precision_score(y_test, y_pred, average="macro"))
-        mlflow.log_metric("recall",     recall_score(y_test, y_pred, average="macro"))
-        mlflow.log_metric("f1_score",   f1_score(y_test, y_pred, average="macro"))
-        mlflow.log_metric("train_time", train_time)
+        for key, value in metrics.items():
+            mlflow.log_metric(key, value)
         mlflow.xgboost.log_model(model, artifact_path="model")
+        mlflow.log_artifact(cm_filename)
+        mlflow.log_artifact(metric_path)
+        mlflow.log_artifact(estimator_html)
 
-# ── Log the best model in the PARENT run (yang dibuat oleh CLI) ──
-best_model  = grid_search.best_estimator_
-best_params = grid_search.best_params_
-y_pred_best = best_model.predict(X_test)
+    # Optional: clean up local files after logging
+    os.remove(cm_filename)
+    os.remove(metric_path)
+    os.remove(estimator_html)
 
-# Log langsung ke run yang sudah aktif (yang dibuat oleh `mlflow run` CLI)
-mlflow.log_params(best_params)
-mlflow.log_metric("best_accuracy",   accuracy_score(y_test, y_pred_best))
-mlflow.log_metric("best_precision", precision_score(y_test, y_pred_best, average="macro"))
-mlflow.log_metric("best_recall",     recall_score(y_test, y_pred_best, average="macro"))
-mlflow.log_metric("best_f1_score",   f1_score(y_test, y_pred_best, average="macro"))
-mlflow.log_metric("best_train_time", train_time)
+# ─────────────── Log Best Model ───────────────
+best_model = grid.best_estimator_
+best_params = grid.best_params_
+best_preds = best_model.predict(X_test)
 
-mlflow.xgboost.log_model(best_model, artifact_path="best_model")
-mlflow.xgboost.save_model(best_model, "model")   # Optional: for Docker etc.
+best_metrics = {
+    "accuracy":  accuracy_score(y_test, best_preds),
+    "precision": precision_score(y_test, best_preds, average="macro"),
+    "recall":    recall_score(y_test, best_preds, average="macro"),
+    "f1_score":  f1_score(y_test, best_preds, average="macro"),
+    "train_time": total_train_time
+}
+
+# Plot confusion matrix for best model
+best_cm_path = "training_confusion_matrix.png"
+plt.figure(figsize=(6, 4))
+sns.heatmap(confusion_matrix(y_test, best_preds), annot=True, fmt="d", cmap="Blues")
+plt.title("Best Model Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.tight_layout()
+plt.savefig(best_cm_path)
+plt.close()
+
+# Save best metrics & model summary
+best_json = "metric_info.json"
+best_html = "estimator.html"
+with open(best_json, "w") as f:
+    json.dump(best_metrics, f, indent=4)
+with open(best_html, "w") as f:
+    f.write(f"<pre>{best_model}</pre>")
+
+# Log parent run
+with mlflow.start_run(run_name="Best_XGB_Model_Full"):
+    mlflow.log_params(best_params)
+    for k, v in best_metrics.items():
+        mlflow.log_metric(k, v)
+    mlflow.xgboost.log_model(best_model, artifact_path="best_model")
+    mlflow.log_artifact(best_cm_path)
+    mlflow.log_artifact(best_json)
+    mlflow.log_artifact(best_html)
+
+# Optional: clean up local files
+os.remove(best_cm_path)
+os.remove(best_json)
+os.remove(best_html)
