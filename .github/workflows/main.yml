@@ -46,7 +46,7 @@ jobs:
         run: |
           echo "--- Running mlflow run command with Conda environment manager ---"
           conda init bash
-          mlflow run . --env-manager=conda
+          mlflow run MLproject --env-manager=conda
 
       - name: Get latest MLflow run_id
         shell: bash -l {0}

@@ -18,7 +18,6 @@ from sklearn.metrics import (
 
 # ─────────────── MLflow Setup ───────────────
 mlflow.set_tracking_uri("file:./mlruns")
-# mlflow.set_experiment("Personality_Prediction_Experiment") 
 
 # ───────────────────────── Read dataset ─────────────────────────
 if len(sys.argv) < 2:
