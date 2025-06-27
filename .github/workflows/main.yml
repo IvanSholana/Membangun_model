@@ -44,7 +44,7 @@ jobs:
 
       - name: Verify Script Content
         shell: bash -l {0}
-        run: cat MLProject/modelling_tunning.py
+        run: cat MLproject/modelling_tunning.py
 
       - name: Run MLflow project
         id: train
@@ -57,18 +57,18 @@ jobs:
 
       - name: Verify mlruns Directory
         shell: bash -l {0}
-        run: ls -l MLProject/mlruns/
+        run: ls -l MLproject/mlruns/
 
       - name: Verify best_run_id.txt
         shell: bash -l {0}
         run: |
-          ls -l MLProject/
-          cat MLProject/best_run_id.txt
+          ls -l MLproject/
+          cat MLproject/best_run_id.txt
 
       - name: Get latest MLflow run_id
         shell: bash -l {0}
         run: |
-          RUN_ID=$(cat MLProject/best_run_id.txt)
+          RUN_ID=$(cat MLproject/best_run_id.txt)
           echo "Best run ID: $RUN_ID"
           echo "RUN_ID=${RUN_ID}" >> $GITHUB_ENV
 
