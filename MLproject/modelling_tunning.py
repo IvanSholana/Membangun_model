@@ -18,6 +18,17 @@ mlruns_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mlruns"))
 mlflow.set_tracking_uri(f"file:{mlruns_path}")
 mlflow.set_experiment("Personality_Prediction_Experiment")
 
+print(f"[DEBUG] MLflow tracking URI: {mlruns_path}")
+
+print("\n[DEBUG] Top level of 'mlruns' directory:")
+for root, dirs, files in os.walk(mlruns_path):
+    print(f"- {root}")
+    for d in dirs:
+        print(f"    [DIR] {d}")
+    for f in files:
+        print(f"    [FILE] {f}")
+    break  # Only top level
+
 if len(sys.argv) < 2:
     raise ValueError("Please provide path to dataset as an argument.")
 
@@ -48,7 +59,7 @@ best_run_id = None
 xgb = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
 for i, params in enumerate(combinations, 1):
-    with mlflow.start_run(run_name=f"run_{i}") as run:
+    with mlflow.start_run(run_name=f"run_{i}", nested=True) as run:
         run_id = run.info.run_id
         print(f"[INFO] Running combination {i}/{len(combinations)}: {params}")
         
@@ -98,47 +109,7 @@ for i, params in enumerate(combinations, 1):
         if f1 > best_f1_score:
             best_f1_score = f1
             best_run_id = run_id
-            print(f"[INFO] New best F1 score: {best_f1_score} for run {best_run_id}")
-            
-
-import os
-
-mlruns_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mlruns"))
-print(f"[DEBUG] MLflow tracking URI: {mlruns_path}")
-
-print("\n[DEBUG] Top level of 'mlruns' directory:")
-for root, dirs, files in os.walk(mlruns_path):
-    print(f"- {root}")
-    for d in dirs:
-        print(f"    [DIR] {d}")
-    for f in files:
-        print(f"    [FILE] {f}")
-    break  # Only top level
-
-# Lihat folder run terbaik
-run_folder = os.path.join(mlruns_path, "0", best_run_id)
-print(f"\n[DEBUG] Best run folder: {run_folder}")
-
-print("\n[DEBUG] Contents of best run:")
-for root, dirs, files in os.walk(run_folder):
-    print(f"- {root}")
-    for d in dirs:
-        print(f"    [DIR] {d}")
-    for f in files:
-        print(f"    [FILE] {f}")
-    break  # Only top level
-
-# Lihat artifacts
-artifacts_folder = os.path.join(run_folder, "artifacts")
-print(f"\n[DEBUG] Artifacts folder: {artifacts_folder}")
-
-for root, dirs, files in os.walk(artifacts_folder):
-    print(f"- {root}")
-    for d in dirs:
-        print(f"    [DIR] {d}")
-    for f in files:
-        print(f"    [FILE] {f}")
-    break            
+            print(f"[INFO] New best F1 score: {best_f1_score} for run {best_run_id}")  
 
 try:
     if os.path.exists("best_run_id.txt"):
