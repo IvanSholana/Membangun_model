@@ -46,6 +46,9 @@ jobs:
         shell: bash -l {0}
         run: cat MLproject/modelling_tunning.py
 
+      - name: Set MLflow Tracking URI
+        run: echo "MLFLOW_TRACKING_URI=file://$(pwd)/mlruns" >> $GITHUB_ENV
+
       - name: Run MLflow project
         id: train
         shell: bash -l {0}

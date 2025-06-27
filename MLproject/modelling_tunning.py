@@ -13,20 +13,7 @@ import matplotlib.pyplot as plt
 import os
 import mlflow
 
-# Set tracking URI ke path absolut
-mlruns_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mlruns"))
-mlflow.set_tracking_uri(f"file:{mlruns_path}")
-
-print(f"[DEBUG] MLflow tracking URI: {mlruns_path}")
-
-print("\n[DEBUG] Top level of 'mlruns' directory:")
-for root, dirs, files in os.walk(mlruns_path):
-    print(f"- {root}")
-    for d in dirs:
-        print(f"    [DIR] {d}")
-    for f in files:
-        print(f"    [FILE] {f}")
-    break  # Only top level
+mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 
 if len(sys.argv) < 2:
     raise ValueError("Please provide path to dataset as an argument.")
