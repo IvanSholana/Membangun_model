@@ -58,10 +58,6 @@ jobs:
           echo "--- Running mlflow run command with Conda environment manager ---"
           mlflow run MLproject/ --env-manager=conda -P dataset_path=personality_preprocessing/personality_preprocessing.csv
 
-      - name: Verify mlruns Directory
-        shell: bash -l {0}
-        run: ls -l MLproject/mlruns/
-
       - name: Verify best_run_id.txt
         shell: bash -l {0}
         run: |
