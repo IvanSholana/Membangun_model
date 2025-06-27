@@ -16,7 +16,6 @@ import mlflow
 # Set tracking URI ke path absolut
 mlruns_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mlruns"))
 mlflow.set_tracking_uri(f"file:{mlruns_path}")
-mlflow.set_experiment("Personality_Prediction_Experiment")
 
 print(f"[DEBUG] MLflow tracking URI: {mlruns_path}")
 
