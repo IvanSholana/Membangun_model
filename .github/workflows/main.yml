@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write   
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -14,6 +17,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: main
+          lfs: true               
 
       - name: Setup Miniconda
         uses: conda-incubator/setup-miniconda@v3
@@ -58,6 +62,22 @@ jobs:
           echo "--- Running mlflow run command with Conda environment manager ---"
           mlflow run MLproject/ --env-manager=conda -P dataset_path=personality_preprocessing/personality_preprocessing.csv
 
+      - name: Setup Git LFS
+        run: |
+          git lfs install
+
+      - name: Track MLflow artifacts with Git LFS
+        run: |
+          git lfs track "mlruns/**"
+          git add .gitattributes
+
+      - name: Commit MLflow artifacts to LFS
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore: update MLflow artifacts (mlruns) via Git LFS"
+          file_pattern: |
+            mlruns/**
+
       - name: Verify best_run_id.txt
         shell: bash -l {0}
         run: |
@@ -81,7 +101,8 @@ jobs:
 
       - name: Login to Docker Hub
         run: |
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" \
+            | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
       - name: Push Docker image to Docker Hub
         run: |
