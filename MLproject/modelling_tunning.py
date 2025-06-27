@@ -59,7 +59,10 @@ best_run_id = None
 xgb = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
 for i, params in enumerate(combinations, 1):
-    with mlflow.start_run(run_name=f"run_{i}", nested=True) as run:
+    with mlflow.start_run(nested=True) as run:
+        if mlflow.active_run() is not None:
+            print(f"[DEBUG] Active run ID: {mlflow.active_run().info.run_id}")
+            
         run_id = run.info.run_id
         print(f"[INFO] Running combination {i}/{len(combinations)}: {params}")
         
