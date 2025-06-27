@@ -40,7 +40,7 @@ best_run_id = None
 xgb = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
 for i, params in enumerate(combinations, 1):
-    with mlflow.start_run() as run:
+    with mlflow.start_run(nested=True) as run:
         run_id = run.info.run_id
         print(f"[INFO] Running combination {i}/{len(combinations)}: {params}")
         
@@ -60,16 +60,14 @@ for i, params in enumerate(combinations, 1):
         true_positive_rate = recall_score(y_test, y_pred, pos_label=1)
         false_positive_rate = 1 - precision_score(y_test, y_pred, pos_label=1)
         
-        mlflow.log_metric({
-            'f1_score': f1,
-            'accuracy': accuracy,
-            'precision': prec,
-            'recall': rec,
-            'true_positive_rate': true_positive_rate,
-            'false_positive_rate': false_positive_rate,
-            'training_time': end_time - start_time
-        })
-        
+        mlflow.log_metric("f1_score", f1)
+        mlflow.log_metric("accuracy", accuracy)
+        mlflow.log_metric("precision", prec)
+        mlflow.log_metric("recall", rec)
+        mlflow.log_metric("true_positive_rate", true_positive_rate)
+        mlflow.log_metric("false_positive_rate", false_positive_rate)
+        mlflow.log_metric("training_time", end_time - start_time)
+
         mlflow.xgboost.log_model(xgb, artifact_path="model")
         
         ConfusionMatrixDisplay.from_estimator(
