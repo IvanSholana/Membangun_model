@@ -51,14 +51,17 @@ jobs:
       - name: Get latest MLflow run_id
         shell: bash -l {0}
         run: |
-          RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | awk -F '/' '{print $(NF-1)}')
-          echo "RUN_ID=$RUN_ID"
-          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          RUN_ID=$(cat MLProject/best_run_id.txt)
+          echo "Best run ID: $RUN_ID"
+          echo "RUN_ID=${RUN_ID}" >> $GITHUB_ENV
 
       - name: Build Docker Model
         shell: bash -l {0}
         run: |
-            conda run -n mlflow-env --no-capture-output mlflow models build-docker --model-uri "runs:/$RUN_ID/best_model" --name "personality-model-docker"
+            conda run -n mlflow-env --no-capture-output \
+            mlflow models build-docker \
+            --model-uri "runs:/$RUN_ID" \
+            --output-path "personality-model-docker" \
 
       - name: Login to Docker Hub
         run: |
