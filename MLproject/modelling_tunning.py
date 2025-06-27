@@ -12,7 +12,12 @@ import mlflow
 import mlflow.xgboost
 import matplotlib.pyplot as plt
 
-mlflow.set_tracking_uri("file:./mlruns")
+import os
+import mlflow
+
+# Pastikan tracking URI absolute path ke folder mlruns
+mlruns_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mlruns"))
+mlflow.set_tracking_uri(f"file:{mlruns_path}")
 
 if len(sys.argv) < 2:
     raise ValueError("Please provide path to dataset as an argument.")
