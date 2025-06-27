@@ -3,29 +3,26 @@ import sys
 import time
 import json
 import pandas as pd
-
 from xgboost import XGBClassifier
-from sklearn.model_selection import GridSearchCV, ParameterGrid, train_test_split
+from sklearn.model_selection import ParameterGrid, train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, ConfusionMatrixDisplay
-
 import mlflow
 import mlflow.xgboost
 import matplotlib.pyplot as plt
 
-import os
-import mlflow
-
-# Pastikan tracking URI absolute path ke folder mlruns
-mlruns_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "mlruns"))
-mlflow.set_tracking_uri(f"file:{mlruns_path}")
+mlflow.set_tracking_uri("file:./mlruns")
 
 if len(sys.argv) < 2:
     raise ValueError("Please provide path to dataset as an argument.")
 
 dataset_path = sys.argv[1]
 
-print(f"[INFO] Loading dataset from: {dataset_path}")
-df = pd.read_csv(dataset_path)
+try:
+    print(f"[INFO] Loading dataset from: {dataset_path}")
+    df = pd.read_csv(dataset_path)
+except FileNotFoundError:
+    print(f"[ERROR] Dataset file not found: {dataset_path}")
+    sys.exit(1)
 
 X = df.drop(columns=["Personality"])
 y = df["Personality"]
@@ -45,7 +42,7 @@ best_run_id = None
 xgb = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
 
 for i, params in enumerate(combinations, 1):
-    with mlflow.start_run(nested=True) as run:
+    with mlflow.start_run(run_name=f"run_{i}") as run:
         run_id = run.info.run_id
         print(f"[INFO] Running combination {i}/{len(combinations)}: {params}")
         
@@ -61,49 +58,47 @@ for i, params in enumerate(combinations, 1):
         accuracy = accuracy_score(y_test, y_pred)
         prec = precision_score(y_test, y_pred, average='weighted')
         rec = recall_score(y_test, y_pred, average='weighted')
-        recall = recall_score(y_test, y_pred, average='weighted')
-        true_positive_rate = recall_score(y_test, y_pred, pos_label=1)
-        false_positive_rate = 1 - precision_score(y_test, y_pred, pos_label=1)
         
         mlflow.log_metric("f1_score", f1)
         mlflow.log_metric("accuracy", accuracy)
         mlflow.log_metric("precision", prec)
         mlflow.log_metric("recall", rec)
-        mlflow.log_metric("true_positive_rate", true_positive_rate)
-        mlflow.log_metric("false_positive_rate", false_positive_rate)
         mlflow.log_metric("training_time", end_time - start_time)
-
+        
         mlflow.xgboost.log_model(xgb, artifact_path="model")
         
         ConfusionMatrixDisplay.from_estimator(
             xgb, X_test, y_test, cmap='Blues', normalize='true',
             display_labels=xgb.classes_, ax=None, colorbar=False
         )
-        plt.savefig("confusion_matrix.png")
+        plt.savefig(f"confusion_matrix_{run_id}.png")
+        plt.close()
         
-        with open("metric_info.json", "w") as f:
-            json.dump({
-                'f1_score': f1,
-                'accuracy': accuracy,
-                'precision': prec,
-                'recall': rec,
-                'true_positive_rate': true_positive_rate,
-                'false_positive_rate': false_positive_rate,
-                'training_time': end_time - start_time
-            }, f)
-            
-        
-        mlflow.log_artifact("confusion_matrix.png")
-        mlflow.log_artifact("metric_info.json")
+        metrics = {
+            'f1_score': f1,
+            'accuracy': accuracy,
+            'precision': prec,
+            'recall': rec,
+            'training_time': end_time - start_time
+        }
+        try:
+            with open(f"metric_info_{run_id}.json", "w") as f:
+                json.dump(metrics, f)
+            mlflow.log_artifact(f"confusion_matrix_{run_id}.png")
+            mlflow.log_artifact(f"metric_info_{run_id}.json")
+        except Exception as e:
+            print(f"[ERROR] Failed to save artifacts: {e}")
         
         if f1 > best_f1_score:
             best_f1_score = f1
             best_run_id = run_id
             print(f"[INFO] New best F1 score: {best_f1_score} for run {best_run_id}")
-            
-if os.path.exists("best_run_id.txt"):
-    os.remove("best_run_id.txt")
-    
-with open("best_run_id.txt", "w") as f:
-    f.write(best_run_id)
-        
+
+try:
+    if os.path.exists("best_run_id.txt"):
+        os.remove("best_run_id.txt")
+    with open("best_run_id.txt", "w") as f:
+        f.write(best_run_id)
+except Exception as e:
+    print(f"[ERROR] Failed to write best_run_id.txt: {e}")
+    sys.exit(1)

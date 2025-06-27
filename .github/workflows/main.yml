@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
+        with:
+          ref: main
 
       - name: Setup Miniconda
         uses: conda-incubator/setup-miniconda@v3
@@ -40,13 +42,28 @@ jobs:
           pip show mlflow
           which mlflow
 
+      - name: Verify Script Content
+        shell: bash -l {0}
+        run: cat MLProject/modelling_tunning.py
+
       - name: Run MLflow project
         id: train
         shell: bash -l {0}
+        env:
+          MLFLOW_DISABLE_ENV_MANAGER_CONDA_WARNING: "TRUE"
         run: |
           echo "--- Running mlflow run command with Conda environment manager ---"
-          conda init bash
-          mlflow run MLproject/ --env-manager=conda
+          mlflow run MLproject/ --env-manager=conda -P dataset_path=personality_preprocessing/personality_preprocessing.csv
+
+      - name: Verify mlruns Directory
+        shell: bash -l {0}
+        run: ls -l MLProject/mlruns/
+
+      - name: Verify best_run_id.txt
+        shell: bash -l {0}
+        run: |
+          ls -l MLProject/
+          cat MLProject/best_run_id.txt
 
       - name: Get latest MLflow run_id
         shell: bash -l {0}
@@ -58,10 +75,10 @@ jobs:
       - name: Build Docker Model
         shell: bash -l {0}
         run: |
-            conda run -n mlflow-env --no-capture-output \
-            mlflow models build-docker \
-            --model-uri "runs:/$RUN_ID" \
-            --output-path "personality-model-docker" \
+          conda run -n mlflow-env --no-capture-output \
+          mlflow models build-docker \
+          --model-uri "runs:/${{ env.RUN_ID }}/model" \
+          --name "personality-model"
 
       - name: Login to Docker Hub
         run: |
@@ -69,5 +86,5 @@ jobs:
 
       - name: Push Docker image to Docker Hub
         run: |
-          docker tag personality-model-docker:latest ${{ secrets.DOCKERHUB_USERNAME }}/personality-model:latest
+          docker tag personality-model:latest ${{ secrets.DOCKERHUB_USERNAME }}/personality-model:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/personality-model:latest
